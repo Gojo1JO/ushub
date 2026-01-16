@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  --love-pink: #ff85a1;
+  --love-red: #ff4d6d;
+}
+
+body {
+  background-color: #fff0f3;
+  min-height: 100vh;
+  font-family: sans-serif;
+  overflow-x: hidden;
+  margin: 0;
+}
+
+/* Add these to your existing CSS file */
+.bg-blue-400 { background-color: #60a5fa; }
+.bg-blue-500 { background-color: #3b82f6; }
+.bg-blue-100 { background-color: #dbeafe; }
