@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import eyesPhoto from './assets/eyes.jpg';
 
 const DAYS_ORDER = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -39,26 +39,30 @@ const LoginPage = ({ onLogin }) => {
   );
 };
 
-// --- 2. ALBUM PAGE COMPONENT ---
+// --- 2. ALBUM PAGE (UPDATED: BROWSE FROM STORAGE) ---
 const AlbumPage = ({ onBack, currentUser }) => {
   const [openedBook, setOpenedBook] = useState(null); 
   const [albums, setAlbums] = useState(() => {
-    const saved = localStorage.getItem('couple_albums_v1');
+    const saved = localStorage.getItem('couple_albums_v2');
     return saved ? JSON.parse(saved) : { Jo: [], Ari: [] };
   });
 
   useEffect(() => {
-    localStorage.setItem('couple_albums_v1', JSON.stringify(albums));
+    localStorage.setItem('couple_albums_v2', JSON.stringify(albums));
   }, [albums]);
 
-  const addPhoto = (book) => {
-    const url = prompt(`Add photo URL to ${book}'s book:`);
-    const caption = prompt("Enter a short caption:");
-    if (url) {
-      setAlbums(prev => ({
-        ...prev,
-        [book]: [...prev[book], { id: Date.now(), url, caption }]
-      }));
+  const handleFileUpload = (e, book) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const caption = prompt("Enter a short caption:");
+        setAlbums(prev => ({
+          ...prev,
+          [book]: [...prev[book], { id: Date.now(), url: reader.result, caption }]
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -85,14 +89,11 @@ const AlbumPage = ({ onBack, currentUser }) => {
               <div className="w-32 h-44 bg-[#4a90e2] rounded-r-2xl rounded-l-md shadow-2xl border-l-8 border-black/20 flex items-center justify-center transform group-hover:rotate-[-5deg] transition-all">
                 <span className="text-white font-black text-2xl italic">JO</span>
               </div>
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Click to Open</span>
             </button>
-
             <button onClick={() => setOpenedBook('Ari')} className="group flex flex-col items-center gap-4">
               <div className="w-32 h-44 bg-[#ff85a1] rounded-r-2xl rounded-l-md shadow-2xl border-l-8 border-black/20 flex items-center justify-center transform group-hover:rotate-[5deg] transition-all">
                 <span className="text-white font-black text-2xl italic">ARI</span>
               </div>
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Click to Open</span>
             </button>
           </div>
         </div>
@@ -101,30 +102,23 @@ const AlbumPage = ({ onBack, currentUser }) => {
           <div className="flex justify-between items-center mb-6 px-2">
             <h2 className="text-xl font-black text-gray-800 uppercase italic">{openedBook}'s Gallery</h2>
             {currentUser === openedBook && (
-              <button 
-                onClick={() => addPhoto(openedBook)}
-                className="bg-[#ff85a1] text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg"
-              >+ Add Photo</button>
+              <label className="bg-[#ff85a1] text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg cursor-pointer">
+                + Browse Storage
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, openedBook)} />
+              </label>
             )}
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             {albums[openedBook].map((photo) => (
               <div key={photo.id} className="bg-white p-2 rounded-2xl shadow-md relative group">
                 <img src={photo.url} className="w-full h-40 object-cover rounded-xl" alt="Memory" />
                 {photo.caption && <p className="text-[9px] font-bold text-gray-500 mt-2 px-1 uppercase tracking-tight">{photo.caption}</p>}
                 {currentUser === openedBook && (
-                  <button 
-                    onClick={() => deletePhoto(openedBook, photo.id)}
-                    className="absolute top-3 right-3 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                  >✕</button>
+                  <button onClick={() => deletePhoto(openedBook, photo.id)} className="absolute top-3 right-3 bg-red-500 text-white w-5 h-5 rounded-full text-[10px]">✕</button>
                 )}
               </div>
             ))}
           </div>
-          {albums[openedBook].length === 0 && (
-            <p className="text-gray-300 font-bold uppercase text-xs mt-20 text-center italic">This book is empty...</p>
-          )}
         </div>
       )}
     </div>
@@ -243,7 +237,6 @@ const CalendarPage = ({ onBack, currentUser }) => {
   const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
 
-  // Helper to check if current logged user matches the schedule owner
   const isScheduleOwner = (activeUser === 'his' && currentUser === 'Jo') || (activeUser === 'hers' && currentUser === 'Ari');
 
   return (
@@ -261,9 +254,9 @@ const CalendarPage = ({ onBack, currentUser }) => {
         <div className="grid grid-cols-7 gap-1">
           {Array(firstDay).fill(null).map((_, i) => <div key={i} />)}
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-            const isAnniv = day === 17; // ADDED BACK THE 17th MARK
-            const isJoBday = day === 21 && viewDate.getMonth() === 6; // July
-            const isAriBday = day === 10 && viewDate.getMonth() === 7; // Aug
+            const isAnniv = day === 17;
+            const isJoBday = day === 21 && viewDate.getMonth() === 6;
+            const isAriBday = day === 10 && viewDate.getMonth() === 7;
             const isToday = day === today.getDate() && viewDate.getMonth() === today.getMonth();
             
             return (
@@ -354,36 +347,79 @@ const StoryPage = ({ onBack }) => {
   );
 };
 
-// --- 7. VAULT PAGE ---
+// --- 7. VAULT PAGE (UPDATED: LIVE VOICE RECORDER) ---
 const VaultPage = ({ onBack }) => {
-  const [items, setItems] = useState(() => { const saved = localStorage.getItem('couple_vault_v3'); return saved ? JSON.parse(saved) : []; });
-  useEffect(() => { localStorage.setItem('couple_vault_v3', JSON.stringify(items)); }, [items]);
+  const [items, setItems] = useState(() => { const saved = localStorage.getItem('couple_vault_v4'); return saved ? JSON.parse(saved) : []; });
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorder = useRef(null);
+  const audioChunks = useRef([]);
+
+  useEffect(() => { localStorage.setItem('couple_vault_v4', JSON.stringify(items)); }, [items]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder.current = new MediaRecorder(stream);
+      audioChunks.current = [];
+      mediaRecorder.current.ondataavailable = (e) => audioChunks.current.push(e.data);
+      mediaRecorder.current.onstop = () => {
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/mpeg' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setItems(prev => [...prev, { id: Date.now(), type: 'vm', content: reader.result, lockType: 'none' }]);
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+      mediaRecorder.current.start();
+      setIsRecording(true);
+    } catch (err) { alert("Mic access denied!"); }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const addItem = () => {
-    const type = confirm("OK for Msg, Cancel for VM") ? 'msg' : 'vm';
-    const content = prompt("Content/Link:"); const lockType = prompt("Lock: 'none', 'pass', 'date'");
-    let password = ""; let unlockDate = "";
-    if (lockType === 'pass') password = prompt("Password:");
-    if (lockType === 'date') unlockDate = prompt("Date (YYYY-MM-DD):");
-    if (content) setItems([...items, { id: Date.now(), type, content, lockType, password, unlockDate }]);
+    const content = prompt("Secret Message:");
+    if (content) setItems([...items, { id: Date.now(), type: 'msg', content, lockType: 'none' }]);
   };
+
   const openItem = (item) => {
-    if (item.lockType === 'date' && new Date() < new Date(item.unlockDate)) return alert("Locked!");
-    if (item.lockType === 'pass' && prompt("Guess:") !== item.password) return alert("Wrong!");
-    item.type === 'msg' ? alert(item.content) : window.open(item.content, '_blank');
+    if (item.type === 'msg') alert(item.content);
   };
+
   return (
     <div className="flex flex-col gap-6 pb-20">
-      <button onClick={onBack} className="text-[#ff85a1] font-bold text-xs uppercase self-start">← Back</button>
+      <button onClick={onBack} className="text-[#ff85a1] font-bold text-xs uppercase self-start px-2">← Back</button>
       <h2 className="text-2xl font-black italic uppercase text-center">Secret Vault</h2>
-      <div className="grid grid-cols-1 gap-4">
+      
+      <div className="flex gap-4 px-2">
+        <button onClick={addItem} className="flex-1 border-2 border-dashed border-pink-200 p-4 rounded-2xl text-pink-400 font-bold text-[10px] uppercase">+ Note</button>
+        <button 
+          onClick={isRecording ? stopRecording : startRecording} 
+          className={`flex-1 p-4 rounded-2xl font-bold text-[10px] uppercase shadow-sm ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-white border border-pink-50 text-pink-400'}`}
+        >
+          {isRecording ? 'Stop Rec' : '🎙️ Rec VM'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 px-2">
         {items.map((item) => (
-          <button key={item.id} onClick={() => openItem(item)} className="bg-white p-5 rounded-[2rem] shadow-sm border border-pink-50 flex items-center justify-between">
-            <span className="text-2xl">{item.type === 'msg' ? '✉️' : '🎙️'}</span>
-            <span className="text-pink-300 font-bold text-[10px] uppercase tracking-widest">{item.lockType}</span>
-            <span>{item.lockType === 'none' ? '🔓' : '🔒'}</span>
-          </button>
+          <div key={item.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-pink-50 flex flex-col gap-3">
+             <div className="flex justify-between items-center">
+                <span className="text-xl">{item.type === 'msg' ? '✉️' : '🎙️'}</span>
+                <button onClick={() => setItems(items.filter(i => i.id !== item.id))} className="text-gray-300 text-[10px]">Delete</button>
+             </div>
+             {item.type === 'msg' ? (
+               <p className="text-left text-xs text-gray-600" onClick={() => openItem(item)}>{item.content}</p>
+             ) : (
+               <audio controls src={item.content} className="w-full h-8" />
+             )}
+          </div>
         ))}
-        <button onClick={addItem} className="border-2 border-dashed border-pink-200 p-5 rounded-[2rem] text-pink-300 font-black">+ Add Secret</button>
       </div>
     </div>
   );
